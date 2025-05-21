@@ -1,6 +1,6 @@
 # ETL Tool
 
-A desktop application that provides ETL (Extract, Transform, Load) functionality similar to Alteryx, with a drag-and-drop interface for creating data workflows.
+A desktop application that provides ETL (Extract, Transform, Load) functionality, with a drag-and-drop interface for creating data workflows.
 
 ## Features
 
