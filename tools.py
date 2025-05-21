@@ -81,11 +81,69 @@ class FormulaTool(ETLTool):
         return self.output_data
 
 class OutputTool(ETLTool):
-    def __init__(self, file_path: str):
+    def __init__(self, file_path: str, file_format: str = 'csv'):
         super().__init__()
         self.file_path = file_path
+        self.file_format = file_format.lower()
 
     def execute(self):
+        if self.input_data is None:
+            return None
+
+        if self.file_format == 'csv':
+            self.input_data.to_csv(self.file_path, index=False)
+        elif self.file_format == 'excel':
+            self.input_data.to_excel(self.file_path, index=False)
+        elif self.file_format == 'json':
+            self.input_data.to_json(self.file_path, orient='records')
+        else:
+            raise ValueError(f"Unsupported file format: {self.file_format}")
+
         self.output_data = self.input_data
-        self.output_data.to_csv(self.file_path, index=False)
+        return self.output_data
+
+class AggregateTool(ETLTool):
+    def __init__(self, aggregations: Dict[str, List[str]], group_by: Optional[str] = None):
+        super().__init__()
+        self.aggregations = aggregations  # Dict of column name to list of aggregation functions
+        self.group_by = group_by
+
+    def execute(self):
+        if self.input_data is None:
+            return None
+
+        # Create a copy of the input data
+        result = self.input_data.copy()
+
+        # If group_by is specified, group the data first
+        if self.group_by:
+            grouped = result.groupby(self.group_by)
+        else:
+            grouped = result
+
+        # Apply aggregations
+        agg_dict = {}
+        for column, functions in self.aggregations.items():
+            for func in functions:
+                agg_name = f"{column}_{func}"
+                if func == "sum":
+                    agg_dict[agg_name] = grouped[column].sum()
+                elif func == "max":
+                    agg_dict[agg_name] = grouped[column].max()
+                elif func == "min":
+                    agg_dict[agg_name] = grouped[column].min()
+                elif func == "mean":
+                    agg_dict[agg_name] = grouped[column].mean()
+                elif func == "median":
+                    agg_dict[agg_name] = grouped[column].median()
+                elif func == "count":
+                    agg_dict[agg_name] = grouped[column].count()
+
+        # Create the aggregated DataFrame
+        self.output_data = pd.DataFrame(agg_dict)
+        
+        # If group_by was used, reset the index to make it a column
+        if self.group_by:
+            self.output_data.reset_index(inplace=True)
+            
         return self.output_data 

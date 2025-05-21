@@ -7,6 +7,7 @@ class WorkflowManager:
     def __init__(self):
         self.nodes = {}  # Dictionary to store tool nodes
         self.connections = []  # List to store connections between nodes
+        self.node_data = {}  # Dictionary to store data for each node
 
     def add_node(self, node_id: str, tool_type: str, position: Dict[str, float], 
                 properties: Dict[str, Any] = None):
@@ -21,6 +22,33 @@ class WorkflowManager:
             'from': from_node,
             'to': to_node
         })
+
+    def remove_node(self, node_id: str):
+        """Remove a node and its associated data and connections"""
+        # Remove the node
+        if node_id in self.nodes:
+            del self.nodes[node_id]
+        
+        # Remove associated data
+        if node_id in self.node_data:
+            del self.node_data[node_id]
+        
+        # Remove all connections involving this node
+        self.connections = [conn for conn in self.connections 
+                          if conn['from'] != node_id and conn['to'] != node_id]
+
+    def remove_connection(self, from_node: str, to_node: str):
+        """Remove a connection between two nodes"""
+        self.connections = [conn for conn in self.connections 
+                          if not (conn['from'] == from_node and conn['to'] == to_node)]
+
+    def get_node_data(self, node_id: str):
+        """Get the data associated with a node"""
+        return self.node_data.get(node_id)
+
+    def set_node_data(self, node_id: str, data):
+        """Set the data for a node"""
+        self.node_data[node_id] = data
 
     def save_workflow(self, file_path: str):
         workflow_data = {
@@ -65,6 +93,9 @@ class WorkflowManager:
                                            properties['new_column'])
             elif tool_type == 'Output':
                 tools[node_id] = OutputTool(properties['file_path'])
+            elif tool_type == 'Aggregate':
+                tools[node_id] = AggregateTool(properties['aggregations'],
+                                             properties.get('group_by'))
 
         # Then, execute tools in order based on connections
         for connection in self.connections:
@@ -72,5 +103,7 @@ class WorkflowManager:
             to_tool = tools[connection['to']]
             to_tool.input_data = from_tool.output_data
             to_tool.execute()
+            # Store the output data
+            self.set_node_data(connection['to'], to_tool.output_data)
 
         return tools 
